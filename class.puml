@@ -1,0 +1,54 @@
+@startuml ReactAgent
+class ReactAgent {
++generate([]*schema.Message) *schema.Message
+}
+ReactAgent --> ChatModel
+ReactAgent --> Tool
+class ChatModel {
++generate([]*schema.Message) *schema.Message
++bindTools([]*ToolInfo)
+}
+
+interface Tool {
++Info() ToolInfo
+}
+
+class ToolInfo {
+-name
+-desc
+-parameters map[string]*ParameterInfo
+}
+Tool ..> ToolInfo
+class ParameterInfo {
+-name
+-type
+-desc
+-required
+-elemInfo *ParameterInfo
+-subInfo map[string]*ParameterInfo
+}
+ToolInfo ..> ParameterInfo
+
+ParameterInfo --> DataType
+enum DataType {
++Integer
++String
++Number
++Boolean
++Object
++Array
+}
+
+class Message {
+-role
+-content
+}
+
+enum Role {
++User
++String
++Assistant
++Tool
+}
+Message --> Role
+@enduml
