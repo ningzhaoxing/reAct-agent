@@ -3,37 +3,52 @@ package chatmodel
 import (
 	"context"
 	"errors"
-	"net/http"
+	"reAct-agent/agent"
+	"reAct-agent/schema"
+	"reAct-agent/tool"
 	"strings"
 	"time"
 )
 
-type ChatModelConfig struct {
-	APIKey     string
-	Model      string
-	HTTPClient *http.Client
-	BaseUrl    string
-	Timeout    time.Duration
+type ChatModelClient interface {
+	Generate(ctx context.Context, model string, messages []*schema.Message, tools []*tool.ToolInfo) (*schema.Message, error)
+	Stream(ctx context.Context, model string, messages []*schema.Message, tools []*tool.ToolInfo) (<-chan *schema.Message, <-chan error)
 }
+
+type ChatModelConfig struct {
+	Client ChatModelClient
+
+	APIKey  string
+	Model   string
+	BaseUrl string
+	Timeout time.Duration
+}
+
+var _ agent.ChatModel = (*ChatModel)(nil)
 
 // ChatModel represents a simple chat model that can generate responses
 // and bind tool metadata for potential tool usage.
 type ChatModel struct {
-	conf *ChatModelConfig
-
-	tools []*tool.ToolInfo
+	conf   *ChatModelConfig
+	client ChatModelClient
+	tools  []*tool.ToolInfo
 }
 
+type ChatModelOption func(*ChatModelConfig)
+
 // NewChatModel constructs a ChatModel.
-func NewChatModel(ctx context.Context, config *ChatModelConfig) (*ChatModel, error) {
+func NewChatModel(ctx context.Context, config *ChatModelConfig, opts ...ChatModelOption) (*ChatModel, error) {
+	for _, opt := range opts {
+		opt(config)
+	}
+	if config.Client == nil {
+		return nil, errors.New("client is required")
+	}
 	if len(config.Model) == 0 {
 		return nil, errors.New("model is required")
 	}
 	if len(config.APIKey) == 0 {
 		return nil, errors.New("api key is required")
-	}
-	if config.HTTPClient == nil {
-		config.HTTPClient = http.DefaultClient
 	}
 	if config.Timeout == 0 {
 		config.Timeout = time.Minute
@@ -44,7 +59,8 @@ func NewChatModel(ctx context.Context, config *ChatModelConfig) (*ChatModel, err
 		}
 	}
 
-	return &ChatModel{conf: config}, nil
+	mdl := &ChatModel{conf: config, client: config.Client}
+	return mdl, nil
 }
 
 // BindTools registers tool infos with the model.
@@ -56,13 +72,14 @@ func (c *ChatModel) BindTools(ctx context.Context, infos []*tool.ToolInfo) error
 // Generate produces a basic assistant message. In real usage, this would
 // consult model logic and tool metadata.
 func (c *ChatModel) Generate(ctx context.Context, history []*schema.Message) (*schema.Message, error) {
-	// Minimal stub implementation: echo last user message or default reply.
-	var content string
-	if len(history) > 0 {
-		last := history[len(history)-1]
-		if last != nil {
-			content = "Received: " + last.Content
-		}
+	msg, err := c.client.Generate(ctx, c.conf.Model, history, c.tools)
+	if err != nil {
+		return nil, err
 	}
-	return &schema.Message{Role: schema.RoleAssistant, Content: content}, nil
+
+	return msg, nil
+}
+
+func (c *ChatModel) Stream(ctx context.Context, history []*schema.Message) (<-chan *schema.Message, <-chan error) {
+	return c.client.Stream(ctx, c.conf.Model, history, c.tools)
 }
