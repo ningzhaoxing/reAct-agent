@@ -1,5 +1,7 @@
 package tool
 
+import "context"
+
 // DataType represents the parameter data type.
 // Aligns with UML enum: Integer, String, Number, Boolean, Object, Array.
 type DataType int
@@ -37,4 +39,5 @@ type ToolInfo struct {
 // Tool defines the interface a tool must implement to expose its info.
 type Tool interface {
 	Info() ToolInfo
+	Execute(ctx context.Context, params map[string]interface{}) (interface{}, error)
 }
