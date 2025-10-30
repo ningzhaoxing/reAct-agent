@@ -7,13 +7,24 @@ type Role int
 
 const (
 	RoleUser Role = iota
-	RoleString
+	RoleSystem
 	RoleAssistant
 	RoleTool
 )
 
 func (r Role) String() string {
-	return [...]string{"User", "String", "Assistant", "Tool"}[r]
+	switch r {
+	case RoleUser:
+		return "user"
+	case RoleSystem:
+		return "system"
+	case RoleAssistant:
+		return "assistant"
+	case RoleTool:
+		return "tool"
+	default:
+		return "user"
+	}
 }
 
 // Message models a chat message with a role and textual content.
