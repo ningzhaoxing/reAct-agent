@@ -1,17 +1,38 @@
 @startuml ReactAgent
 class ReactAgent {
+-maxStep
 +generate([]*schema.Message) *schema.Message
 }
-ReactAgent --> ChatModel
-ReactAgent --> Tool
-class ChatModel {
-+generate([]*schema.Message) *schema.Message
-+bindTools([]*ToolInfo)
+class State {
 }
+ReactAgent --> State
 
+State -->"0...*" Message
+
+ReactAgent --> ChatModel
+ReactAgent -->"0...*" Tool
+class ChatModel {
++generate([]Message) Message
++stream([]Message) <- Message
++bindTools([]ToolInfo)
+}
+ChatModel --> ChatModelClient
+interface ChatModelClient {
++generate([]Message) Message
++stream([]Message) <- Message
+}
+class QWenChatModel {
+-baseUrl
+-apiKey
+}
+QWenChatModel --u|> ChatModelClient
 interface Tool {
 +Info() ToolInfo
++Execute(map[string]interface{}) interface{}
 }
+class Calculator {
+}
+Calculator --u|> Tool
 
 class ToolInfo {
 -name
@@ -40,7 +61,6 @@ enum DataType {
 }
 
 class Message {
--role
 -content
 }
 
